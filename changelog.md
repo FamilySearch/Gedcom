@@ -1,3 +1,7 @@
+# Working draft
+
+-  Significant expansion to section 1.5 "Extensions" to more fully specify the meaning of "extended-use standard tag" and clarify various other rules that were implicit or not mentioned in previous versions.
+
 # Version 7.0.3
 
 - Clarify the use of CONT as an escaped new-line that looks like a substructure of the first line of text
@@ -8,7 +12,7 @@
 
 - Fix incorrect example using NAME.LANG
 
-- Standardize use of links and references to IETF documents
+- Standardize use of links vs URLs
 
 # Version 7.0.2
 

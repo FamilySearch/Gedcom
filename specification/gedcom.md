@@ -398,58 +398,35 @@ For FamilySearch GEDCOM 7.0, this is the `GEDC` structure described in [Chapter 
 A header should contain an extension schema structure with tag `SCHMA`
 as described in [Extensions].
 
+
 ##  Extensions
 
-A **standard structure** is a structure whose type, tag, meaning, superstructure, and cardinality within the superstructure are described in this document. This includes records such as `INDI` and substructures such as `INDI`.`NAME`.
+The structures documented in this specification are called **standard structures**.
+Each standard structure has
 
-Two forms of **extension structures** are permitted:
+- A structure type, identified by a URI;
+- A set of locations where it may appear (as a record or as a substructure of a set of superstructure types), with a permitted cardinality in each location;
+- A set of substructures it may contain, with a permitted cardinality for each;
+- A payload type; if an enumeration, the set of allowed enumerated values;
+- A meaning.
 
-- A **tagged extension structure** is a structure whose tag matches production `extTag`. Tagged extension structures may appear as records or substructures of any other structure.
-- An **extended-use standard structure** is a structure whose type, tag, and meaning are defined in this document and whose superstructure is a tagged extension structure.
+Structures must obey all of these rules to conform to this specification.
 
-Extension structures may have substructures, which may be either tagged extension structures of extended-use standard structures.
+The recommended way to go beyond the set of standard structure types in this specification or to expand their usage is to submit a feature request on the [FamilySearch GEDCOM development page](https://github.com/FamilySearch/GEDCOM/issues) so that the ramifications of the proposed addition and its interplay with other proposals may be discussed and the addition may be included in a subsequent version of this specification.
 
-All other non-standard structures are prohibited. Examples of prohibited structures include, but are not limited to,
+This specification also allows for several kinds of *extensions*
+which go beyond this specification in various ways without being added to a subsequent version of the specification.
+Extensions may
 
-- any structure with a tag matching production `stdTag` that is not defined in this document;
-- any substructure with cardinality `{0:1}` appearing more than once;
-- a standard substructure appearing as a record or vice-versa;
-- a standard structure whose payload does not match the requirements of this document.
+- introduce new structure types using *tagged extension structures*;
+- introduce new enumeration values and calendars;
+- place a structure defined in this specification in a new location as *relocated standard structures* and *extended-use standard structures*;
+- place an enumerated value defined in this specification in a new location using extension tags.
 
-:::note
-In some cases, an extension may need to allow multiple structures where this document allows only 1. The recommended way to do this is to create an extension tag and URI and serve a page describing how the semantics of the structure have been extended to allow multiple instances.
+Extensions *cannot* change the cardinality, payload type, or meaning of any structure type, enumerated value, or date defined in this specification.
 
-:::example
-Suppose I have multiple sources that give different ages of the wife at a wedding; however, this specification allows only 1 `MARR`.`WIFE`.`AGE`. An extension could not include multiple `MARR`.`WIFE` nor `MARR`.`WIFE`.`AGE`, but could define a new extension `_AGE`, give it a URL, and provide the following definition of this extension structure type at that URL:
+The following subsections describe how these properties of extensions are realized.
 
-> Alternate age: an age attested by some source, but not accepted by the researcher as the actual age of the individual. If the age is accepted by the researcher, the standard tag `AGE` should be used instead.
-
-This alternate age extension structure could be used as follows:
-
-```gedcom
-1 MARR
-2 WIFE
-3 AGE 27y
-3 _AGE 22y
-```
-:::
-:::
-
-Enumerated values may be extended with new values that match production `extTag`.
-Enumerations may not use standard values from other enumeration sets.
-
-:::example
-The following is not allowed because `PARENT` is defined as a value for `ROLE`, not for `RESN`
-
-```gedcom
-0 @BAD@ INDI
-1 RESN PARENT
-1 NOTE The above enumeration value is not allowed
-```
-:::
-
-Dates may be extended provided they use a calendar that matches production `extTag`.
-Dates with extension calendars may also use extension months and epochs.
 
 
 ### Extension Tags
@@ -515,6 +492,127 @@ and a system importing one may export it as the other without change of meaning.
 An extension tag that is not given a URI in the schema structure is called an **undocumented extension tag**.
 The meaning of an undocumented extension tag is identified by its tag.
 
+
+### Types of Extensions
+
+Inside a date payload, an extension tag may be used where the specification documents a calendar;
+if an extension calendar is used, extensions may also be used for the month and epoch.
+If a standard tag exists for a given calendar, month, or epoch, it should be used instead of an extension tag, but using an extension tag instead is permitted to enable forward compatibility with versions of this standard that add additional calendars.
+
+Inside an enumeration or list-of-enumeration payload, extension tags may be used to extend the set of permitted enumerated values in that context.
+Documented extension tags with URIs of enumerated values in this document may be used and permit using values not normally permitted as payloads of their containing structure.
+Use of a documented extension tag to indicate a structure type, calendar, or month as an enumerated value is also permitted, as for example is done by [SOUR.EVEN](#enum-SOUR.EVEN) and [NO](#enum-NO) in this specification.
+
+:::example
+The following is not allowed because `OTHER` is not defined as a value for `ADOP`:
+
+```gedcom
+0 @BAD@ INDI
+1 FAMC @F1@
+2 ADOP OTHER
+```
+
+However, if the following had appeared in the header:
+
+```gedcom
+1 SCHMA
+2 TAG _OTHER https://gedcom.io/terms/v7/enum-OTHER
+```
+
+then `_OTHER` would be permitted as a payload of `ADOP` (and elsewhere) with the meaning `OTHER` has in this specification: "A value not listed here; should have a `PHRASE` substructure", like so:
+
+```gedcom
+0 @GOOD@ INDI
+1 FAMC @F1@
+2 ADOP _OTHER
+3 PHRASE As an heir of the estate
+```
+:::
+
+
+A **relocated standard structure** is a structure whose tag is a documented extension tag with a URI that identifies it as a structure type in this specification.
+Regardless of its structure type, a relocated standard structure may appear as a record, in the header, or with any structure type as its superstructure.
+It must abide by all of the other restrictions of its structure type.
+
+:::note
+One of those restrictions is the meaning of the structure. Although relocated standard structures may appear as records or substructures, if their meaning descriptions refer to their superstructure they can't both satisfy that meaning and appear as a record.
+:::
+
+For forward compatibility with versions of this standard that add additional structure types, a relocated standard structure may be used where a standard structure is expected, but doing so is not recommended.
+When this specification refers to the order or number of substructures of a given type, it means the full set of standard structures and relocated standard structures;
+in particular, cardinality constraints are not changed by using relocated standard structures instead of standard structures.
+
+:::note
+There may be cases where an extension author wishes to allow multiple structures where this document allows only one.
+Because cardinality rules cannot be changed by an extension,
+this requires introducing a new structure type with adjusted semantics that give meaning to multiple instances.
+
+:::example
+Suppose I have multiple sources that give different ages of the wife at a wedding; however, this specification allows only 1 `MARR`.`WIFE`.`AGE`. An extension could not include multiple `MARR`.`WIFE` nor `MARR`.`WIFE`.`AGE`, but could define a new extension `_AGE`, give it a URL, and provide the following definition of this extension structure type at that URL:
+
+> Alternate age: an age attested by some source, but not accepted by the researcher as the actual age of the individual. If the age is accepted by the researcher, the standard tag `AGE` should be used instead.
+
+This alternate age extension structure could be used as follows:
+
+```gedcom
+1 MARR
+2 WIFE
+3 AGE 27y
+3 _AGE 22y
+```
+:::
+:::
+
+
+A **tagged extension structure** is a structure whose tag is either an undocumented extension tag or a documented extension tag with a URI not defined in this specification.
+This specification allows tagged extension structures as records, in the header, and as substructures of every structure type, all with unbounded cardinality.
+Additional limitations on tagged extension structures are defined by the extension authors.
+
+A tagged extension structure may have any payload type. It is recommended that all tagged extension structures with the same tag should have the same payload type, but for backwards compatibility with extensions authored before 7.0, that limitation is not required.
+
+An **extended-use standard structure** is a structure with a standard tag that is the substructure of either a tagged extension structure or an extended-use standard structure.
+The structure type of an extended-use standard structure is defined by its tag and its superstructure's type.
+If this specification defines a structure type with the same tag and superstructure type, the extended-use standard structure has that type.
+Otherwise, the extended-use standard structure's type is identified by the URI created by concatenating the prefix `g7:` to its tag.
+If neither of those results in a structure type defined in this specification, an extended-use standard structure with this tag is not permitted in this context.
+
+Like relocated standard structures, extended-use standard structures may violate this specifications usual restrictions on superstructure and substructure types, but must abide by all other restrictions on their structure type, including any cardinality constraints.
+
+:::example
+Consider the following example, based on the [GEDCOM-L Addendum to the GEDCOM 5.5.1 specification](https://genealogy.net/GEDCOM/)
+
+```gedcom
+0 @P1@ _LOC
+1 NAME Βυζάντιον
+2 DATE FROM 667 BCE TO 324
+1 NAME Νέα Ῥώμη
+2 DATE 330
+1 _LOC @P2@
+0 @P2@ _LOC
+1 NAME Byzantine Empire
+```
+
+This example uses the following features of the extension system:
+
+- `_LOC` is used both as a record without a pointer payload and as a substructure with a pointer payload, which is permitted.
+
+- `NAME`'s superstructure is a tagged extension structure, making it an extended-use standard structure with URI `https://gedcom.io/terms/v7/NAME`. As such, its payload type is text and its meaning is "The name of the superstructure’s subject, represented as a simple string."
+
+- Although `g7:NAME` has limited cardinality each place it appears in this specification, none of those locations are inside a `_LOC` so having two `g7:NAME` in one `_LOC` is permitted.
+
+- `DATE`'s superstructure is an extended-use standard structure, making it an extended-use standard structure with URI `https://gedcom.io/terms/v7/DATE`. As such, its payload type and meaning are defined as "The principal date of the subject of the superstructure. The payload is a `DateValue`."
+
+- Note that `g7:NAME` has no substructure of type `g7:DATE` in this specification; thus while `_LOC`.`NAME`.`DATE` is permitted as extended-use, `SUBM`.`NAME`.`DATE` is not extended-use and thus is not permitted.
+:::
+
+No other extensions are permitted by this specification;
+for example, none of the following are permitted:
+
+- Using a standard tag that is not defined in this specification (but see [A Guide to Version Numbers] for future-compatibility considerations).
+- Using an unexpected standard-tagged enumerated value in a standard, extended-use standard, or relocated standard structure's payload.
+- Omitting a substructure listed with cardinality `{1:1}` or `{1:M}`.
+- Including multiple substructures of a type listed with cardinality `{0:1}` or `{1:1}`, whether as standard structures, relocated standard structures, or extended-use standard structures.
+- A standard structure having a substructure with a standard tag that is not documented as a substructure of that structure type in this specification.
 
 ### Requirements and Recommendations
 
